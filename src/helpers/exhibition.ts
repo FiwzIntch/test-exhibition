@@ -21,7 +21,10 @@ export function getBadgeStatus(active: boolean) {
   }
 }
 
-export function getFriendlyDate(date: string, format?: string) {
+export function getFriendlyDate(date?: string, format?: string) {
+  if (date === undefined) {
+    return '-'
+  }
   if (format) {
     return dayjs(date).format(format)
   }

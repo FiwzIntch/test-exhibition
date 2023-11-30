@@ -16,11 +16,7 @@ let totalItems = ref<ExhibitionModelView[]>(
   })
 )
 const models = ref<ExhibitionModelView[]>([])
-const checkAllList = ref<{
-  [key: string]: boolean
-}>({
-  'page-1': false
-})
+const checkAll = ref(false)
 const openModalRef = ref<HTMLButtonElement>()
 const pageSize = ref(5)
 const page = ref(1)
@@ -29,14 +25,15 @@ const totalPage = computed<number>(() => {
   return Math.ceil(totalItems.value.length / pageSize.value)
 })
 
-const countSelectedToDelete = computed<number>(() => {
-  return totalItems.value.filter((m) => m.checked === true).length
+const disableDeleteBtn = computed<boolean>(() => {
+  return models.value.filter((m) => m.checked === true).length === 0
 })
 
-function reloadData() {
+function getModelsByPageSize() {
   const allList = totalItems.value.map((value) => {
     return {
-      ...value
+      ...value,
+      checked: false
     }
   })
 
@@ -50,78 +47,54 @@ function onConfirmDelete() {
 }
 
 function deleteItem() {
-  totalItems.value = totalItems.value.filter((item) => item.checked === false)
+  const idsDeleting = models.value.filter((item) => item.checked === true).map((v) => v.id)
+  models.value = models.value.filter((item) => item.checked === false)
+  if (checkAll.value) {
+    checkAll.value = false
+  }
+  // delete original
+  totalItems.value = totalItems.value.filter((v) => !idsDeleting.includes(v.id))
 
-  if (checkAllList.value[`page-${page.value}`]) {
-    generateCheckBoxAllByPage()
+  if (models.value.length === 0 && page.value > 1) {
+    page.value = page.value - 1
   }
 
-  if (page.value > totalPage.value) {
-    page.value = totalPage.value - 1
-  }
-
-  reloadData()
+  getModelsByPageSize()
 }
 
 function onPageChange(value: number) {
   page.value = value
-  reloadData()
+  getModelsByPageSize()
 }
 
 function onPageSizeChange(value: number) {
   pageSize.value = value
-
-  page.value = 1
-
-  reloadData()
-
-  generateCheckBoxAllByPage()
+  getModelsByPageSize()
 }
 
-function generateCheckBoxAllByPage() {
-  checkAllList.value = {}
-  for (let i = 1; i <= totalPage.value; i++) {
-    checkAllList.value[`page-${i}`] = false
+watch(
+  () => checkAll.value,
+  (value) => {
+    models.value = models.value.map((data) => {
+      return {
+        ...data,
+        checked: value
+      }
+    })
   }
-}
-
-function onChangeCheckAllDelete() {
-  const ids = models.value.map((m) => m.id)
-
-  for (const id of ids) {
-    const findIndex = totalItems.value.findIndex((v) => v.id === id)
-    if (findIndex !== -1) {
-      totalItems.value[findIndex].checked = checkAllList.value[`page-${page.value}`]
-    }
-  }
-
-  reloadData()
-}
-
-function onChangeCheckDelete(index: number) {
-  const model = models.value[index]
-
-  const findIndex = totalItems.value.findIndex((v) => v.id === model.id)
-
-  if (findIndex !== -1) {
-    totalItems.value[findIndex].checked = model.checked
-  }
-}
+)
 
 onMounted(() => {
-  reloadData()
-  generateCheckBoxAllByPage()
+  getModelsByPageSize()
 })
 </script>
 <template>
   <div>
     <p class="text-xl font-bold">รายการผลงาน</p>
-
     <div class="card bg-base-100 shadow mt-5 h-full">
       <div class="card-body">
-        <div class="card-title justify-between">
-          <div class="text-sm">เลือกจำนวน {{ countSelectedToDelete }} รายการ</div>
-          <button class="btn" @click="onConfirmDelete()" :disabled="countSelectedToDelete === 0">
+        <div class="card-title justify-end">
+          <button class="btn" @click="onConfirmDelete()" :disabled="disableDeleteBtn">
             <IconDelete class="w-6 text-error" />
             Delete
           </button>
@@ -134,8 +107,7 @@ onMounted(() => {
                   <th>
                     <label>
                       <input
-                        v-model="checkAllList[`page-${page}`]"
-                        @change="onChangeCheckAllDelete()"
+                        v-model="checkAll"
                         type="checkbox"
                         class="checkbox checkbox-primary"
                         :disabled="models.length === 0"
@@ -151,12 +123,11 @@ onMounted(() => {
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="(model, index) in models" :key="model.id">
+                <tr v-for="model in models" :key="model.id">
                   <th>
                     <label>
                       <input
                         v-model="model.checked"
-                        @change="onChangeCheckDelete(index)"
                         type="checkbox"
                         class="checkbox checkbox-primary"
                       />
@@ -192,7 +163,7 @@ onMounted(() => {
         </div>
 
         <Pagination
-          :page-sizes="[2, 5, 10, 20]"
+          :page-sizes="[5, 10, 20]"
           :page="page"
           :page-size="pageSize"
           :total-page="totalPage"
@@ -211,7 +182,7 @@ onMounted(() => {
     <div class="modal" role="dialog">
       <div class="modal-box">
         <h3 class="font-bold text-lg">ลบผลงาน</h3>
-        <p class="py-4">ยืนยันที่จะลบผลงานที่เลือกจำนวน {{ countSelectedToDelete }} รายการนี้</p>
+        <p class="py-4">ยืนยันที่จะลบผลงานที่เลือกนี้</p>
         <div class="modal-action">
           <label for="my_modal_6" class="btn">ยกเลิก</label>
           <label for="my_modal_6" class="btn btn-primary" @click="deleteItem()">ตกลง</label>

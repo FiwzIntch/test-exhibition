@@ -2,8 +2,8 @@ export interface ExhibitionModel {
   id: number
   name: string
   type: ExhibitionType
-  startDate: string
-  endDate: string
+  startDate?: string
+  endDate?: string
   active: boolean
   detail: string
   copyright: Copyright
